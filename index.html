@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Savage Protocol — Fairness Verification</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg:#0b1821; --card:#0f212e; --inner:#1a2c38;
+  --border:#24465a; --border2:#2f5a6a; --cyan:#00ffff; --green:#00ff88;
+  --gold:#f0a020; --red:#ff4466; --mid:#8899a8;
+  --dim:#546a7b; --label:#b0bec8; --white:#e2e8f0;
+}
+body {
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  background:var(--bg); color:var(--white);
+  min-height:100vh; padding:0;
+}
+.page { max-width:480px; margin:0 auto; padding:0 0 40px; }
+.header { padding:20px 16px 16px; }
+.header .tag { font-size:9px; color:var(--green); letter-spacing:2px; font-weight:700; margin-bottom:4px; }
+.header h1 { font-size:16px; font-weight:700; }
+.header .sub { font-size:10px; color:var(--dim); margin-top:4px; line-height:1.6; }
+
+.input-area { padding:0 16px 16px; }
+.input-label { font-size:8px; color:var(--dim); letter-spacing:1px; margin-bottom:6px; }
+.input-row { display:flex; gap:8px; }
+.input-row input {
+  flex:1; padding:11px 14px; border-radius:8px;
+  background:var(--inner); border:1px solid var(--border2);
+  color:var(--white); font-family:'Inter',monospace; font-size:14px; outline:none;
+}
+.input-row input:focus { border-color:rgba(0,255,255,0.3); }
+.verify-btn {
+  padding:11px 22px; border-radius:8px; border:none;
+  background:linear-gradient(135deg,#00ff88,#00ccaa);
+  color:#0b1821; font-family:'Inter',sans-serif; font-size:11px; font-weight:700;
+  letter-spacing:0.5px; cursor:pointer; transition:opacity 0.2s;
+}
+.verify-btn:hover { opacity:0.9; }
+.verify-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.net-select { display:flex; gap:4px; margin-top:8px; }
+.net-btn {
+  padding:5px 10px; border-radius:6px; font-family:inherit;
+  font-size:9px; cursor:pointer; border:1px solid var(--border);
+  background:transparent; color:var(--dim); transition:all 0.2s;
+}
+.net-btn.active { background:var(--inner); color:var(--label); border-color:var(--border2); }
+.divider { height:1px; background:rgba(255,255,255,0.04); margin:0 16px; }
+.content { padding:0 16px; }
+
+.log-box {
+  background:#060e14; border:1px solid var(--border);
+  border-radius:8px; padding:10px 12px;
+  max-height:100px; overflow-y:auto;
+  font-size:9px; font-family:'Inter',monospace; line-height:1.7; margin:12px 0;
+}
+.log-box .ok  { color:var(--green); }
+.log-box .info{ color:var(--dim); }
+.log-box .err { color:var(--red); }
+
+.result-badge {
+  display:flex; align-items:center; gap:10px;
+  padding:14px 16px; border-radius:10px; margin-bottom:16px;
+}
+.result-badge.pass { background:rgba(0,255,136,0.05); border:1px solid rgba(0,255,136,0.2); }
+.result-badge.fail { background:rgba(255,68,102,0.05); border:1px solid rgba(255,68,102,0.2); }
+.result-badge.warn { background:rgba(240,160,32,0.05); border:1px solid rgba(240,160,32,0.2); }
+.badge-icon {
+  width:28px; height:28px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.badge-title { font-size:11px; font-weight:700; letter-spacing:0.3px; }
+.badge-sub { font-size:9px; color:var(--dim); margin-top:2px; }
+
+.step-label {
+  font-size:8px; color:var(--dim); letter-spacing:1px; margin:16px 0 8px;
+  display:flex; align-items:center; gap:6px;
+}
+.step-num {
+  width:18px; height:18px; border-radius:50%; font-size:8px; font-weight:700;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.data-box {
+  background:var(--inner); border:1px solid var(--border);
+  border-radius:8px; padding:10px 12px; margin-bottom:4px;
+}
+.field { display:flex; justify-content:space-between; align-items:center; padding:5px 0; }
+.field-label { font-size:9px; color:var(--dim); }
+.field-value { font-size:9px; font-family:'Inter',monospace; color:var(--mid); }
+.field-value a { color:var(--cyan); text-decoration:none; }
+.field-value a:hover { text-decoration:underline; }
+.field-value.gold { color:var(--gold); font-weight:700; }
+.field-value.green { color:var(--green); font-weight:700; }
+.field-value.red { color:var(--red); font-weight:700; }
+
+.entropy-input {
+  font-size:8px; font-family:'Inter',monospace; color:#64788b;
+  word-break:break-all; line-height:1.6;
+  padding:6px 8px; background:rgba(0,0,0,0.15); border-radius:4px;
+  margin:4px 0 6px;
+}
+.match-box {
+  padding:8px 12px; border-radius:6px; text-align:center; margin-top:8px;
+}
+.match-box.pass { background:rgba(0,255,136,0.06); border:1px solid rgba(0,255,136,0.15); }
+.match-box.fail { background:rgba(255,68,102,0.06); border:1px solid rgba(255,68,102,0.15); }
+
+.how-section { margin-top:20px; }
+.how-box {
+  background:rgba(255,255,255,0.015); border:1px solid rgba(255,255,255,0.04);
+  border-radius:8px; padding:14px;
+}
+.how-step { display:flex; gap:10px; margin-bottom:10px; }
+.how-step:last-child { margin-bottom:0; }
+.how-step .num {
+  width:20px; height:20px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:9px; flex-shrink:0;
+}
+.how-step .title { font-size:9px; color:var(--mid); font-weight:600; }
+.how-step .desc { font-size:8px; color:var(--dim); line-height:1.5; margin-top:1px; }
+.how-line { width:1px; height:10px; background:rgba(255,255,255,0.06); margin:2px auto; }
+
+.source-footer {
+  text-align:center; margin-top:16px;
+  font-size:8px; color:var(--dim);
+}
+.source-footer a { color:var(--dim); text-decoration:none; }
+.source-footer a:hover { color:var(--cyan); }
+.hidden { display:none; }
+input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance:none; }
+input[type=number] { -moz-appearance:textfield; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="header">
+    <div class="tag">SAVAGE PROTOCOL</div>
+    <h1 id="pageTitle">Fairness verification</h1>
+    <div class="sub">Every round is verified on Solana via Switchboard VRF. Enter a round number to independently verify the winner selection.</div>
+  </div>
+
+  <div class="input-area">
+    <div class="input-label">ROUND NUMBER</div>
+    <div class="input-row">
+      <input type="number" id="roundInput" placeholder="e.g. 42" min="1">
+      <button class="verify-btn" id="proveBtn" onclick="prove()">VERIFY</button>
+    </div>
+    <div class="net-select">
+      <button class="net-btn active" id="btnDevnet" onclick="setNet('devnet')">Devnet</button>
+      <button class="net-btn" id="btnMainnet" onclick="setNet('mainnet')">Mainnet</button>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="content">
+    <div id="logSection" class="hidden">
+      <div class="log-box" id="logBox"></div>
+    </div>
+    <div id="resultSection" class="hidden"></div>
+
+    <div class="how-section" id="howSection">
+      <div class="step-label">HOW IT WORKS</div>
+      <div class="how-box">
+        <div class="how-step">
+          <div>
+            <div class="num" style="background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.15);color:var(--green);">1</div>
+            <div class="how-line"></div>
+          </div>
+          <div>
+            <div class="title">Commit</div>
+            <div class="desc">Before the round starts, Switchboard VRF commits a hidden random value on-chain. No one can see or change it.</div>
+          </div>
+        </div>
+        <div class="how-step">
+          <div>
+            <div class="num" style="background:rgba(0,255,255,0.08);border:1px solid rgba(0,255,255,0.15);color:var(--cyan);">2</div>
+            <div class="how-line"></div>
+          </div>
+          <div>
+            <div class="title">Reveal</div>
+            <div class="desc">After the round ends, the VRF reveals the value. No one — including Savage — could predict it.</div>
+          </div>
+        </div>
+        <div class="how-step">
+          <div>
+            <div class="num" style="background:rgba(240,160,32,0.08);border:1px solid rgba(240,160,32,0.15);color:var(--gold);">3</div>
+          </div>
+          <div>
+            <div class="title">Draw</div>
+            <div class="desc">SHA256 entropy is derived from all inputs. The winning ticket = entropy mod total tickets. You can verify this yourself right here.</div>
+          </div>
+        </div>
+      </div>
+      <div class="source-footer" style="margin-top:14px;">
+        This page makes zero server calls · All math runs in your browser<br>
+        <a href="https://github.com/savageprotocol" target="_blank" rel="noopener noreferrer">Open source on GitHub ↗</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict'
+
+var PROGRAM_ID_B58 = '3GpjV42ygu48ojGVTSE1qMpCvvsywUnTd4azrqQd6rnk'
+var ROUND_SEED = new TextEncoder().encode('round')
+var ENTROPY_PREFIX = new TextEncoder().encode('savage_entropy_v3')
+var SB_PID_DEVNET  = 'Aio4gaXjXzJNVLtzwtNVmSqGKpANtXhybbkhtAC94ji2'
+var SB_PID_MAINNET = 'SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv'
+
+var RPC = 'https://api.devnet.solana.com'
+var CLUSTER = 'devnet'
+
+function setNet(net) {
+  CLUSTER = net === 'mainnet' ? 'mainnet-beta' : 'devnet'
+  RPC = net === 'mainnet'
+    ? 'https://api.mainnet-beta.solana.com'
+    : 'https://api.devnet.solana.com'
+  document.getElementById('btnDevnet').className = 'net-btn' + (net === 'devnet' ? ' active' : '')
+  document.getElementById('btnMainnet').className = 'net-btn' + (net === 'mainnet' ? ' active' : '')
+}
+
+var B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+function b58Dec(s) {
+  var n = 0n
+  for (var c of s) { var i = B58.indexOf(c); if (i < 0) throw new Error('bad b58'); n = n*58n + BigInt(i) }
+  var b = []; while (n > 0n) { b.unshift(Number(n & 0xffn)); n >>= 8n }
+  for (var c of s) { if (c === '1') b.unshift(0); else break }
+  return new Uint8Array(b)
+}
+function b58Enc(bytes) {
+  var n = 0n; for (var b of bytes) n = (n << 8n) | BigInt(b)
+  var s = ''; while (n > 0n) { s = B58[Number(n % 58n)] + s; n /= 58n }
+  for (var b of bytes) { if (b === 0) s = '1' + s; else break }
+  return s
+}
+
+async function sha256(d) { return new Uint8Array(await crypto.subtle.digest('SHA-256', d)) }
+function concat() {
+  var a = Array.from(arguments)
+  var t = a.reduce(function(s, x) { return s + x.length }, 0)
+  var o = new Uint8Array(t); var p = 0
+  for (var x of a) { o.set(x, p); p += x.length }
+  return o
+}
+
+var PP = 2n**255n - 19n
+var DD = 37095705934669439343138083508754565189542113879843219016388785533085940283555n
+function mpow(b, e, m) { var r = 1n; b %= m; while (e > 0n) { if (e & 1n) r = r*b%m; e >>= 1n; b = b*b%m } return r }
+function isOnCurve(b32) {
+  var t = new Uint8Array(b32); t[31] &= 0x7f
+  var y = 0n; for (var i = 0; i < 32; i++) y |= BigInt(t[i]) << (8n * BigInt(i))
+  if (y >= PP) return false
+  var y2 = y*y%PP, u = (y2-1n+PP)%PP, v = (DD*y2%PP+1n)%PP
+  var v3 = v*v%PP*v%PP, v7 = v3*v3%PP*v%PP
+  var x = u*v3%PP * mpow(u*v7%PP, (PP-5n)/8n, PP) % PP
+  var vx2 = v*x%PP*x%PP
+  return vx2 === u%PP || vx2 === (PP - u%PP) % PP
+}
+
+async function findPDA(seeds, prog) {
+  for (var nonce = 255; nonce >= 0; nonce--) {
+    var h = await sha256(concat.apply(null, seeds.concat([prog, new Uint8Array([nonce]),
+      new TextEncoder().encode('ProgramDerivedAddress')])))
+    if (!isOnCurve(h)) return h
+  }
+  throw new Error('No valid PDA nonce')
+}
+
+function u64LE(n) { var b = new Uint8Array(8); for (var i = 0; i < 8; i++) { b[i] = Number(n & 0xffn); n >>= 8n } return b }
+function ru64(d, o) { var v = 0n; for (var i = 0; i < 8; i++) v |= BigInt(d[o+i]) << (8n*BigInt(i)); return v }
+function ru128(d, o) { var v = 0n; for (var i = 0; i < 16; i++) v |= BigInt(d[o+i]) << (8n*BigInt(i)); return v }
+function hex(b) { return Array.from(b).map(function(x) { return x.toString(16).padStart(2, '0') }).join('') }
+
+var _id = 1
+async function rpc(method, params) {
+  var res = await fetch(RPC, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: _id++, method: method, params: params }) })
+  if (!res.ok) throw new Error('HTTP ' + res.status)
+  var j = await res.json(); if (j.error) throw new Error(j.error.message); return j.result
+}
+async function getAcct(addr) {
+  var r = await rpc('getAccountInfo', [addr, { encoding: 'base64' }])
+  if (!r || !r.value) return null
+  var raw = atob(r.value.data[0])
+  return { data: new Uint8Array(raw.split('').map(function(c) { return c.charCodeAt(0) })), owner: r.value.owner }
+}
+async function getSigs(addr, n) { return (await rpc('getSignaturesForAddress', [addr, { limit: n }])) || [] }
+
+function parseRS(d) {
+  return {
+    round_id:            ru64(d, 40),
+    jackpot_pool:        ru64(d, 48),
+    total_tickets:       ru128(d, 80),
+    is_settled:          d[112] === 1,
+    has_winner:          d[114] === 1,
+    winning_ticket:      ru128(d, 115),
+    settle_slot:         ru64(d, 171),
+    randomness_account:  d.slice(188, 220),
+    commitment:          d.slice(220, 252),
+    commit_request_slot: ru64(d, 261),
+    commitment_version:  d[269],
+    revealed_value:      d.slice(344, 376),
+  }
+}
+
+function fmtSol(lam) {
+  var s = Number(lam) / 1e9
+  if (s === 0) return '0 SOL'
+  if (s < 0.0001) return s.toFixed(8).replace(/0+$/, '') + ' SOL'
+  return s.toFixed(4).replace(/0+$/, '').replace(/\.$/, '') + ' SOL'
+}
+function short(a) { return a.slice(0, 4) + '\u2026' + a.slice(-4) }
+function exAddr(a) { return 'https://explorer.solana.com/address/' + a + (CLUSTER === 'devnet' ? '?cluster=devnet' : '') }
+function exTx(s) { return 'https://explorer.solana.com/tx/' + s + (CLUSTER === 'devnet' ? '?cluster=devnet' : '') }
+
+function log(t, c) {
+  var b = document.getElementById('logBox'), d = document.createElement('div')
+  d.className = c || 'info'; d.textContent = t; b.appendChild(d); b.scrollTop = b.scrollHeight
+}
+
+async function prove() {
+  var roundId = parseInt(document.getElementById('roundInput').value)
+  if (!roundId || roundId < 1) return
+  var SB_PID = CLUSTER === 'devnet' ? SB_PID_DEVNET : SB_PID_MAINNET
+
+  document.getElementById('pageTitle').textContent = 'Fairness verification \u00b7 Round #' + roundId
+  document.getElementById('logSection').classList.remove('hidden')
+  document.getElementById('resultSection').classList.add('hidden')
+  document.getElementById('howSection').style.display = 'none'
+  document.getElementById('logBox').innerHTML = ''
+  document.getElementById('proveBtn').disabled = true
+
+  try {
+    log('Deriving PDA...')
+    var prog = b58Dec(PROGRAM_ID_B58)
+    var pdaBytes = await findPDA([ROUND_SEED, u64LE(BigInt(roundId))], prog)
+    var pda = b58Enc(pdaBytes)
+    log('PDA: ' + pda, 'ok')
+
+    log('Fetching round from ' + (CLUSTER === 'devnet' ? 'Devnet' : 'Mainnet') + '...')
+    var acct = await getAcct(pda)
+    if (!acct) { log('Round not found on chain', 'err'); return }
+    log('Loaded ' + acct.data.length + ' bytes', 'ok')
+
+    var r = parseRS(acct.data)
+    if (Number(r.round_id) !== roundId) { log('round_id mismatch', 'err'); return }
+    if (!r.is_settled) { log('Round not yet settled', 'err'); return }
+    if (r.revealed_value.every(function(b) { return b === 0 })) { log('Randomness not yet revealed', 'err'); return }
+
+    log('Computing entropy...')
+    var entropyInput = concat(ENTROPY_PREFIX, r.commitment,
+      new Uint8Array([r.commitment_version]), r.revealed_value,
+      u64LE(r.round_id), u64LE(r.commit_request_slot))
+    var entropy = await sha256(entropyInput)
+    var slice = entropy.slice(8, 24)
+    var eu128 = ru128(slice, 0)
+    var computed = r.total_tickets > 0n ? eu128 % r.total_tickets : 0n
+    var match = r.has_winner ? computed === r.winning_ticket : true
+    log('Computed winner: #' + computed, 'ok')
+
+    var oracle = b58Enc(r.randomness_account)
+    log('Verifying oracle owner...')
+    var oracleOk = false
+    try {
+      var oAcct = await getAcct(oracle)
+      if (oAcct) oracleOk = oAcct.owner === SB_PID
+    } catch(e) {}
+    log(oracleOk ? 'Oracle owned by Switchboard' : 'Oracle owner check skipped', oracleOk ? 'ok' : 'info')
+
+    var settleSig = null
+    try {
+      var sigs = await getSigs(pda, 20)
+      var ok = sigs.filter(function(s) { return !s.err })
+      if (ok.length > 0) settleSig = ok[ok.length - 1].signature
+    } catch(e) {}
+
+    log('Done', 'ok')
+    render({ r:r, pda:pda, roundId:roundId, computed:computed, match:match, oracle:oracle, oracleOk:oracleOk, settleSig:settleSig, SB_PID:SB_PID, entropy:entropy, eu128:eu128 })
+    document.getElementById('resultSection').classList.remove('hidden')
+
+  } catch(e) {
+    log('Error: ' + e.message, 'err')
+    console.error(e)
+  } finally {
+    document.getElementById('proveBtn').disabled = false
+  }
+}
+
+function render(opts) {
+  var r = opts.r, pda = opts.pda, roundId = opts.roundId, computed = opts.computed
+  var match = opts.match, oracle = opts.oracle, oracleOk = opts.oracleOk
+  var settleSig = opts.settleSig, SB_PID = opts.SB_PID
+  var entropy = opts.entropy, eu128 = opts.eu128
+
+  var noWinner = !r.has_winner && r.total_tickets > 0n
+  var resultClass = noWinner ? 'warn' : (match ? 'pass' : 'fail')
+  var resultColor = noWinner ? 'var(--gold)' : (match ? 'var(--green)' : 'var(--red)')
+  var resultIcon = noWinner ? '\u2014' : (match ? '\u2713' : '\u2717')
+  var resultTitle = noWinner ? 'No winner this round' : (match ? 'Round #' + roundId + ' \u2014 Verified' : 'Mismatch detected')
+  var resultSub = noWinner ? 'Prize rolled over to next round' : (match ? 'Browser calculation matches on-chain result' : 'On-chain result differs \u2014 screenshot and report')
+
+  var mismatchBanner = (!match && !noWinner)
+    ? '<div style="text-align:center;padding:10px 14px;background:rgba(255,68,102,0.08);border:1px solid rgba(255,68,102,0.20);border-radius:8px;margin-bottom:12px">' +
+      '<span style="font-size:10px;color:var(--red)">Screenshot this page and share it publicly for community review</span></div>'
+    : ''
+
+  var html = ''
+
+  html += '<div class="result-badge ' + resultClass + '">' +
+    '<div class="badge-icon" style="background:' + resultColor + '15;border:1.5px solid ' + resultColor + '40">' +
+      '<span style="font-size:16px;color:' + resultColor + ';font-weight:700">' + resultIcon + '</span>' +
+    '</div>' +
+    '<div>' +
+      '<div class="badge-title" style="color:' + resultColor + '">' + resultTitle + '</div>' +
+      '<div class="badge-sub">' + resultSub + '</div>' +
+    '</div>' +
+  '</div>'
+
+  html += mismatchBanner
+
+  html += '<div class="step-label">' +
+    '<div class="step-num" style="background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.15);color:var(--green);">1</div>' +
+    'ON-CHAIN DATA</div>'
+  html += '<div class="data-box">'
+  html += '<div class="field"><span class="field-label">Round account</span><span class="field-value"><a href="' + exAddr(pda) + '" target="_blank">' + short(pda) + ' \u2197</a></span></div>'
+  html += '<div class="field"><span class="field-label">Commitment</span><span class="field-value">' + hex(r.commitment).slice(0, 16) + '\u2026</span></div>'
+  html += '<div class="field"><span class="field-label">Commitment version</span><span class="field-value">' + r.commitment_version + '</span></div>'
+  html += '<div class="field"><span class="field-label">Revealed value</span><span class="field-value">' + hex(r.revealed_value).slice(0, 16) + '\u2026</span></div>'
+  html += '<div class="field"><span class="field-label">Commit request slot</span><span class="field-value">' + Number(r.commit_request_slot).toLocaleString() + '</span></div>'
+  html += '<div class="field"><span class="field-label">Oracle (Switchboard)</span><span class="field-value"><a href="' + exAddr(oracle) + '" target="_blank">' + short(oracle) + (oracleOk ? ' \u2713' : '') + ' \u2197</a></span></div>'
+  if (settleSig) {
+    html += '<div class="field"><span class="field-label">Settlement tx</span><span class="field-value"><a href="' + exTx(settleSig) + '" target="_blank">' + short(settleSig) + ' \u2197</a></span></div>'
+  }
+  html += '</div>'
+
+  html += '<div class="step-label">' +
+    '<div class="step-num" style="background:rgba(0,255,255,0.08);border:1px solid rgba(0,255,255,0.15);color:var(--cyan);">2</div>' +
+    'ENTROPY DERIVATION</div>'
+  html += '<div class="data-box">'
+  html += '<div style="font-size:9px;color:var(--dim);margin-bottom:4px">SHA256 input formula:</div>'
+  html += '<div class="entropy-input">"savage_entropy_v3" || commitment || ' + r.commitment_version + ' || revealed_value || ' + roundId + ' || ' + Number(r.commit_request_slot) + '</div>'
+  html += '<div style="font-size:9px;color:var(--dim);margin-bottom:4px">SHA256 output (entropy):</div>'
+  html += '<div style="font-size:9px;font-family:monospace;color:var(--gold);word-break:break-all;line-height:1.5">' + hex(entropy) + '</div>'
+  html += '</div>'
+
+  html += '<div class="step-label">' +
+    '<div class="step-num" style="background:rgba(240,160,32,0.08);border:1px solid rgba(240,160,32,0.15);color:var(--gold);">3</div>' +
+    'WINNER SELECTION</div>'
+  html += '<div class="data-box">'
+  html += '<div class="field"><span class="field-label">Total tickets</span><span class="field-value">' + r.total_tickets.toLocaleString() + '</span></div>'
+  html += '<div class="field"><span class="field-label">Jackpot</span><span class="field-value gold">' + fmtSol(r.jackpot_pool) + '</span></div>'
+  html += '<div style="height:1px;background:rgba(255,255,255,0.04);margin:6px 0"></div>'
+  html += '<div class="field"><span class="field-label">entropy[8..24] as u128 LE</span><span class="field-value">' + eu128.toString().slice(0, 20) + '\u2026</span></div>'
+  html += '<div class="field"><span class="field-label">u128 % ' + r.total_tickets.toLocaleString() + '</span><span class="field-value gold">#' + computed.toLocaleString() + '</span></div>'
+
+  if (noWinner) {
+    html += '<div style="height:1px;background:rgba(255,255,255,0.04);margin:6px 0"></div>'
+    html += '<div class="field"><span class="field-label">On-chain winner</span><span class="field-value" style="color:var(--dim)">None recorded</span></div>'
+    html += '<div class="match-box warn" style="background:rgba(240,160,32,0.06);border:1px solid rgba(240,160,32,0.15)">' +
+      '<span style="font-size:10px;color:var(--gold);font-weight:700">No winner \u2014 prize rolled over</span></div>'
+  } else {
+    html += '<div class="field"><span class="field-label">On-chain winning_ticket</span><span class="field-value ' + (match ? 'green' : 'red') + '">#' + r.winning_ticket.toLocaleString() + '</span></div>'
+    html += '<div class="match-box ' + (match ? 'pass' : 'fail') + '">' +
+      '<span style="font-size:10px;color:' + (match ? 'var(--green)' : 'var(--red)') + ';font-weight:700">' +
+      (match ? '\u2713 MATCH \u2014 Result independently verified' : '\u2717 MISMATCH \u2014 Results do not match') + '</span></div>'
+  }
+  html += '</div>'
+
+  html += '<div class="source-footer">' +
+    'This page makes zero server calls \u00b7 All data from Solana RPC<br>' +
+    '<a href="https://github.com/savageprotocol" target="_blank">Open source on GitHub \u2197</a>' +
+  '</div>'
+
+  document.getElementById('resultSection').innerHTML = html
+}
+
+document.getElementById('roundInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') prove() })
+
+window.addEventListener('DOMContentLoaded', function() {
+  var p = new URLSearchParams(window.location.search)
+  var r = p.get('round')
+  if (r && parseInt(r) > 0) {
+    document.getElementById('roundInput').value = r
+    var net = p.get('net')
+    if (net === 'mainnet') setNet('mainnet')
+    setTimeout(prove, 300)
+  }
+})
+</script>
+</body>
+</html>

@@ -198,7 +198,7 @@ input[type=number] { -moz-appearance:textfield; }
       </div>
       <div class="source-footer" style="margin-top:14px;">
         This page makes zero server calls · All math runs in your browser<br>
-        <a href="https://github.com/savageprotocol" target="_blank" rel="noopener noreferrer">Open source on GitHub ↗</a>
+        <a href="https://github.com/savage0099/savage-verifier" target="_blank" rel="noopener noreferrer">Open source on GitHub ↗</a>
       </div>
     </div>
   </div>
@@ -293,19 +293,20 @@ async function getAcct(addr) {
 async function getSigs(addr, n) { return (await rpc('getSignaturesForAddress', [addr, { limit: n }])) || [] }
 
 function parseRS(d) {
+  // discriminator at [0..8] (Borsh, no padding)
   return {
-    round_id:            ru64(d, 40),
-    jackpot_pool:        ru64(d, 48),
-    total_tickets:       ru128(d, 80),
-    is_settled:          d[112] === 1,
-    has_winner:          d[114] === 1,
-    winning_ticket:      ru128(d, 115),
-    settle_slot:         ru64(d, 171),
-    randomness_account:  d.slice(188, 220),
-    commitment:          d.slice(220, 252),
-    commit_request_slot: ru64(d, 261),
-    commitment_version:  d[269],
-    revealed_value:      d.slice(344, 376),
+    round_id:            ru64(d, 40), // u64
+    jackpot_pool:        ru64(d, 48), // u64
+    total_tickets:       ru128(d, 80), // u128
+    is_settled:          d[112] === 1, // bool
+    has_winner:          d[114] === 1, // bool
+    winning_ticket:      ru128(d, 115), // u128
+    settle_slot:         ru64(d, 171), // u64
+    randomness_account:  d.slice(188, 220), // Pubkey[32]
+    commitment:          d.slice(220, 252), // [u8;32]
+    commit_request_slot: ru64(d, 261), // u64
+    commitment_version:  d[269], // u8
+    revealed_value:      d.slice(344, 376), // [u8;32]
   }
 }
 
@@ -347,6 +348,7 @@ async function prove() {
     var acct = await getAcct(pda)
     if (!acct) { log('Round not found on chain', 'err'); return }
     log('Loaded ' + acct.data.length + ' bytes', 'ok')
+    if (acct.data.length < 376) { log('Account too small (' + acct.data.length + ' bytes) - layout mismatch', 'err'); return }
 
     var r = parseRS(acct.data)
     if (Number(r.round_id) !== roundId) { log('round_id mismatch', 'err'); return }
@@ -474,7 +476,7 @@ function render(opts) {
 
   html += '<div class="source-footer">' +
     'This page makes zero server calls \u00b7 All data from Solana RPC<br>' +
-    '<a href="https://github.com/savageprotocol" target="_blank">Open source on GitHub \u2197</a>' +
+    '<a href="https://github.com/savage0099/savage-verifier" target="_blank">Open source on GitHub \u2197</a>' +
   '</div>'
 
   document.getElementById('resultSection').innerHTML = html
